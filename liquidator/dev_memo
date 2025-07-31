@@ -1,0 +1,104 @@
+.env 添加方案
+
+【方法1: SSH 连接服务器手动创建】
+# 1. 连接到服务器
+ssh username@your-server-ip
+
+# 2. 进入项目目录
+cd /path/to/your/liquidator
+
+# 3. 创建 .env 文件
+REDIS_HOST=redis
+SECRET_KEY=your_actual_64_character_hex_private_key_without_0x
+
+# 4. 保存并设置权限
+chmod 600 .env
+
+# 5. 验证文件内容（注意：这会显示密钥，确保安全环境）
+; cat .env
+
+# 6. 启动服务
+docker-compose up -d
+
+
+【方法2: 使用 scp 从本地传输】
+# 1. 在本地终端运行
+scp -i ~/.ssh/your_private_key .env username@your-server-ip:/path/to/your/liquidator
+
+# 2. 在服务器终端运行
+chmod 600 .env
+
+# 5. 验证文件内容（注意：这会显示密钥，确保安全环境）
+; cat .env
+
+# 4. 启动服务
+docker-compose up -d
+
+; # 删除本地的 .env 文件（安全起见）
+; rm .env  # 在本地执行
+
+
+【方法3: 使用一键部署脚本】
+# 1. 创建 deploy.sh 脚本：
+
+【方法4: 交互式部署脚本】
+# 1. 创建 interactive-deploy.sh 脚本：
+
+
+
+
+
+【docker-compose 命令】
+
+# 查看实时日志
+docker-compose logs -f
+
+# 查看特定服务日志
+docker-compose logs -f worker
+
+# 解决: 查看详细日志
+docker-compose logs worker
+
+
+# 查看服务状态
+docker-compose ps
+
+
+# 停止服务
+docker-compose down
+
+# 重新启动服务使配置生效
+docker-compose restart
+
+
+【环境隔离】
+# 为不同环境创建不同的配置
+# .env.production
+# .env.staging
+# .env.development
+
+# 使用时指定环境
+docker-compose --env-file .env.production up -d
+
+
+
+【文件权限管理】
+# 确保只有所有者可以读写 .env
+chmod 600 .env
+chmod +x .env
+
+# 检查文件权限
+ls -la .env
+# 应该显示: -rw------- 1 user user ...
+
+
+【安全地备份配置】
+# 创建加密备份
+gpg -c .env  # 会提示输入密码，生成 .env.gpg
+
+# 删除明文备份
+rm .env
+
+# 恢复时解密
+gpg -d .env.gpg > .env
+chmod 600 .env
