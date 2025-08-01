@@ -20,7 +20,7 @@ services:
     command: sh -c "yarn install && yarn ts-node ./src/index.ts run-worker"
     environment:
       - REDIS_HOST=redis
-      - SECRET_KEY=asdfasdfasdf
+      - SECRET_KEY=${SECRET_KEY}  # 从环境变量读取
     depends_on:
       - redis
 

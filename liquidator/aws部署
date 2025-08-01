@@ -27,3 +27,62 @@ sudo chmod +x /usr/local/bin/docker-compose
 newgrp docker
 
 2. 从GitHub克隆项目
+git clone git@github.com:0x-zeros/suilend-fe-public.git
+
+
+
+
+3. 构建和启动服务
+
+# 进入项目目录
+cd suilend-fe-public
+
+# 确保在liquidator目录下
+pwd
+# 应该显示: /path/to/suilend-fe-public/liquidator
+
+# 停止任何现有服务
+docker-compose down
+
+
+# 构建和启动服务
+docker-compose up -d
+
+# 构建并启动服务
+docker-compose up -d --build
+
+# 查看服务状态
+docker-compose ps
+
+
+[检查服务状态]
+# 查看服务状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f
+
+# 查看特定服务的日志
+docker-compose logs -f dispatcher
+docker-compose logs -f worker
+
+[监控服务运行]
+# 实时查看日志
+docker-compose logs -f
+
+# 查看最近的日志
+docker-compose logs --tail=50
+
+# 检查Redis连接
+docker-compose exec redis redis-cli ping
+
+
+[如果遇到问题，可以手动调试]
+# 进入容器调试
+docker-compose exec dispatcher sh
+docker-compose exec worker sh
+
+# 在容器内检查
+ls -la
+npm list
+node --version
