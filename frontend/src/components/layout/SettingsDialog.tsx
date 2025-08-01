@@ -3,13 +3,14 @@ import { useState } from "react";
 import { Settings } from "lucide-react";
 
 import { ExplorerId, RpcId } from "@suilend/sui-fe";
-import { useSettingsContext } from "@suilend/sui-fe-next";
+import { useSettingsContext, useWalletContext } from "@suilend/sui-fe-next";
 
 import ExplorerSelect from "@/components/layout/ExplorerSelect";
 import RpcSelect from "@/components/layout/RpcSelect";
 import Button from "@/components/shared/Button";
 import Dialog from "@/components/shared/Dialog";
 import Input from "@/components/shared/Input";
+import Switch from "@/components/shared/Switch";
 import { TLabelSans } from "@/components/shared/Typography";
 import { Separator } from "@/components/ui/separator";
 
@@ -23,6 +24,7 @@ export default function SettingsDialog() {
     gasBudget,
     setGasBudget,
   } = useSettingsContext();
+  const { isUsingLedger, setIsUsingLedger } = useWalletContext();
 
   // Custom RPC URL
   const [customRpcUrl, setCustomRpcUrl] = useState<string>(
@@ -109,6 +111,16 @@ export default function SettingsDialog() {
           />
         </div>
       </div>
+
+      {/* Ledger */}
+      <Switch
+        className="w-full justify-between"
+        id="isUsingLedger"
+        label="Using a Ledger"
+        horizontal
+        isChecked={isUsingLedger}
+        onToggle={setIsUsingLedger}
+      />
     </Dialog>
   );
 }

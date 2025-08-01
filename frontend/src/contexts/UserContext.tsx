@@ -46,9 +46,6 @@ import useFetchUserData from "@/fetchers/useFetchUserData";
 import { fetchClaimRewardEvents } from "@/lib/events";
 import { STAKED_WAL_TYPE, StakedWalObject, StakedWalState } from "@/lib/walrus";
 
-const AUTOCLAIM_OBLIGATIONS_LIMIT = 5;
-const MAX_REWARDS_PER_TRANSACTION = 3;
-
 const getCombinedAutoclaimedRewards = (
   prevRewards: Record<string, number[]>,
   newRewards: Record<string, number[]>,
@@ -135,7 +132,7 @@ export function UserContextProvider({ children }: PropsWithChildren) {
   const router = useRouter();
 
   const { suiClient } = useSettingsContext();
-  const { address, dryRunTransaction } = useWalletContext();
+  const { address, dryRunTransaction, isUsingLedger } = useWalletContext();
   const { allAppData, appData, refreshAllAppData } = useAppContext();
 
   // Balances
@@ -282,6 +279,12 @@ export function UserContextProvider({ children }: PropsWithChildren) {
   );
 
   // Obligations with unclaimed rewards
+  const AUTOCLAIM_OBLIGATIONS_LIMIT = 10;
+  const MAX_REWARDS_PER_TRANSACTION = useMemo(
+    () => (isUsingLedger ? 0 : 15),
+    [isUsingLedger],
+  );
+
   // Fetch
   const [obligationsWithUnclaimedRewards, setObligationsWithUnclaimedRewards] =
     useState<ObligationWithUnclaimedRewards[] | undefined>(undefined);
@@ -335,8 +338,6 @@ export function UserContextProvider({ children }: PropsWithChildren) {
 
   const autoclaimRewards = useCallback(
     async (transaction: Transaction) => {
-      // return { transaction, onSuccess: () => {} }; // turning off autoclaim while running the script
-
       if (!allAppData) throw Error("App data not loaded"); // Should never happen as the page is not rendered if the app data is not loaded
       if (!obligationsWithUnclaimedRewards)
         return { transaction, onSuccess: () => {} }; // Can happen if the data is not loaded yet or fails to load
@@ -388,8 +389,7 @@ export function UserContextProvider({ children }: PropsWithChildren) {
         (acc, rewards) => acc + rewards.length,
         0,
       );
-      if (count === 0)
-        return { transaction: innerTransaction, onSuccess: () => {} }; // Skip if no rewards to autoclaim
+      if (count === 0) return { transaction, onSuccess: () => {} }; // Skip if no rewards to autoclaim
 
       try {
         await dryRunTransaction(innerTransaction);
@@ -403,13 +403,14 @@ export function UserContextProvider({ children }: PropsWithChildren) {
         };
       } catch (err) {
         track("autoclaim_rewards_dry_run_error");
-        return { transaction: innerTransaction, onSuccess: () => {} };
+        return { transaction, onSuccess: () => {} };
       }
     },
     [
       allAppData,
       obligationsWithUnclaimedRewards,
       userData?.obligations,
+      MAX_REWARDS_PER_TRANSACTION,
       autoclaimedRewards,
       dryRunTransaction,
     ],

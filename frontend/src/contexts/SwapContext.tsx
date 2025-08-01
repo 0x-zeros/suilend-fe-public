@@ -14,6 +14,7 @@ import {
 
 import { normalizeStructTag } from "@mysten/sui/utils";
 import BigNumber from "bignumber.js";
+import { useLocalStorage } from "usehooks-ts";
 
 import {
   NORMALIZED_SEND_COINTYPE,
@@ -31,23 +32,8 @@ import FullPageSpinner from "@/components/shared/FullPageSpinner";
 import { useLoadedAppContext } from "@/contexts/AppContext";
 import { useLoadedUserContext } from "@/contexts/UserContext";
 import { SWAP_URL } from "@/lib/navigation";
+import { TokenDirection } from "@/lib/swap";
 import { PartnerIdMap, SdkMap, useAggSdks } from "@/lib/swap";
-
-export const DEFAULT_TOKEN_IN_SYMBOL = "SUI";
-const DEFAULT_TOKEN_IN_COINTYPE = NORMALIZED_SUI_COINTYPE;
-
-export const DEFAULT_TOKEN_OUT_SYMBOL = "SEND";
-const DEFAULT_TOKEN_OUT_COINTYPE = NORMALIZED_SEND_COINTYPE;
-
-export const getSwapUrl = (
-  inSymbol: string = DEFAULT_TOKEN_IN_SYMBOL,
-  outSymbol: string = DEFAULT_TOKEN_OUT_SYMBOL,
-) => `${SWAP_URL}/${inSymbol}-${outSymbol}`;
-
-export enum TokenDirection {
-  IN = "in",
-  OUT = "out",
-}
 
 export const HISTORICAL_USD_PRICES_INTERVAL = "5m";
 export const HISTORICAL_USD_PRICES_INTERVAL_S = 5 * 60;
@@ -126,6 +112,49 @@ export function SwapContextProvider({ children }: PropsWithChildren) {
 
   // send.ag
   const { sdkMap, partnerIdMap } = useAggSdks();
+
+  // Swap URL
+  const [DEFAULT_TOKEN_IN, setDefaultTokenIn] = useLocalStorage<{
+    hasReserve: boolean;
+    symbol: string;
+    coinType: string;
+  }>("swap_defaultTokenIn", {
+    hasReserve: true,
+    symbol: "SUI",
+    coinType: NORMALIZED_SUI_COINTYPE,
+  });
+  const [DEFAULT_TOKEN_OUT, setDefaultTokenOut] = useLocalStorage<{
+    hasReserve: boolean;
+    symbol: string;
+    coinType: string;
+  }>("swap_defaultTokenOut", {
+    hasReserve: true,
+    symbol: "SEND",
+    coinType: NORMALIZED_SEND_COINTYPE,
+  });
+
+  const getSwapUrl = useCallback(
+    (inSymbol?: string, outSymbol?: string) =>
+      `${SWAP_URL}/${
+        inSymbol ??
+        (DEFAULT_TOKEN_IN.hasReserve
+          ? DEFAULT_TOKEN_IN.symbol
+          : DEFAULT_TOKEN_IN.coinType)
+      }-${
+        outSymbol ??
+        (DEFAULT_TOKEN_OUT.hasReserve
+          ? DEFAULT_TOKEN_OUT.symbol
+          : DEFAULT_TOKEN_OUT.coinType)
+      }`,
+    [
+      DEFAULT_TOKEN_IN.hasReserve,
+      DEFAULT_TOKEN_IN.symbol,
+      DEFAULT_TOKEN_IN.coinType,
+      DEFAULT_TOKEN_OUT.hasReserve,
+      DEFAULT_TOKEN_OUT.symbol,
+      DEFAULT_TOKEN_OUT.coinType,
+    ],
+  );
 
   // USD prices - Historical
   const [tokenHistoricalUsdPricesMap, setTokenHistoricalUsdPricesMap] =
@@ -248,16 +277,22 @@ export function SwapContextProvider({ children }: PropsWithChildren) {
 
       isFetchingVerifiedCoinTypesRef.current = true;
       try {
-        const coinTypes = (
-          await sdkMap.aftermath.Coin().getVerifiedCoins()
-        ).map(normalizeStructTag);
+        const res = await fetch(
+          "https://api-sui.cetus.zone/v3/sui/clmm/verified_coins_info",
+        );
+        const json = await res.json();
+        console.log(json);
+
+        const coinTypes = json.data.list
+          .map((coin: any) => coin.coinType)
+          .map(normalizeStructTag);
 
         setVerifiedCoinTypes(coinTypes);
 
         fetchTokensMetadata(coinTypes);
       } catch (err) {}
     })();
-  }, [sdkMap.aftermath, fetchTokensMetadata]);
+  }, [fetchTokensMetadata]);
 
   // Tokens - Reserves
   useEffect(() => {
@@ -317,12 +352,17 @@ export function SwapContextProvider({ children }: PropsWithChildren) {
         : tokens?.find((t) => t.coinType === obligation.deposits[0].coinType);
       let newTokenOut = isTokenOutValid
         ? tokenOut
-        : tokens?.find((t) => t.coinType === DEFAULT_TOKEN_OUT_COINTYPE);
+        : tokens?.find((t) => t.coinType === DEFAULT_TOKEN_OUT.coinType);
 
-      if (newTokenIn?.coinType === newTokenOut?.coinType)
+      if (newTokenIn?.coinType === newTokenOut?.coinType) {
         newTokenOut = tokens?.find(
-          (t) => t.coinType === DEFAULT_TOKEN_IN_COINTYPE,
+          (t) => t.coinType === DEFAULT_TOKEN_IN.coinType,
         );
+        if (newTokenIn?.coinType === newTokenOut?.coinType)
+          newTokenOut = tokens?.find(
+            (t) => t.coinType === DEFAULT_TOKEN_OUT.coinType,
+          );
+      }
 
       if (!newTokenIn || !newTokenOut) return [undefined, undefined];
 
@@ -352,11 +392,14 @@ export function SwapContextProvider({ children }: PropsWithChildren) {
     obligation?.deposits,
     setSwapInAccount,
     filteredReserves,
+    DEFAULT_TOKEN_IN.coinType,
+    DEFAULT_TOKEN_OUT.coinType,
     tokenHistoricalUsdPricesMap,
     fetchTokenHistoricalUsdPrices,
     tokenUsdPricesMap,
     fetchTokenUsdPrice,
     router,
+    getSwapUrl,
   ]);
 
   useEffect(() => {
@@ -366,7 +409,7 @@ export function SwapContextProvider({ children }: PropsWithChildren) {
       slug[0].split("-")[0] === slug[0].split("-")[1]
     )
       router.replace({ pathname: getSwapUrl() }, undefined, { shallow: true });
-  }, [slug, router]);
+  }, [slug, router, getSwapUrl]);
 
   const setTokenSymbol = useCallback(
     (newTokenSymbol: string, direction: TokenDirection) => {
@@ -383,7 +426,7 @@ export function SwapContextProvider({ children }: PropsWithChildren) {
         { shallow: true },
       );
     },
-    [tokenInSymbol, tokenOutSymbol, router],
+    [tokenInSymbol, tokenOutSymbol, router, getSwapUrl],
   );
 
   // Tokens - Reverse
@@ -395,7 +438,26 @@ export function SwapContextProvider({ children }: PropsWithChildren) {
       undefined,
       { shallow: true },
     );
-  }, [tokenInSymbol, tokenOutSymbol, router]);
+  }, [tokenInSymbol, tokenOutSymbol, router, getSwapUrl]);
+
+  // Tokens - defaults
+  useEffect(() => {
+    if (!tokenIn) return;
+    setDefaultTokenIn({
+      hasReserve: !!appData.reserveMap[tokenIn.coinType],
+      symbol: tokenIn.symbol,
+      coinType: tokenIn.coinType,
+    });
+  }, [tokenIn, setDefaultTokenIn, appData.reserveMap]);
+
+  useEffect(() => {
+    if (!tokenOut) return;
+    setDefaultTokenOut({
+      hasReserve: !!appData.reserveMap[tokenOut.coinType],
+      symbol: tokenOut.symbol,
+      coinType: tokenOut.coinType,
+    });
+  }, [tokenOut, setDefaultTokenOut, appData.reserveMap]);
 
   // Context
   const contextValue: SwapContext = useMemo(

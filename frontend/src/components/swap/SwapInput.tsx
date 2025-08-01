@@ -6,11 +6,12 @@ import { mergeRefs } from "react-merge-refs";
 
 import { Token, formatToken, formatUsd } from "@suilend/sui-fe";
 
+import TokenSelectionDialog from "@/components/shared/TokenSelectionDialog";
 import { TLabel, TLabelSans } from "@/components/shared/Typography";
-import TokenSelectionDialog from "@/components/TokenSelectionDialog";
 import { Input as InputComponent } from "@/components/ui/input";
-import { TokenDirection, useSwapContext } from "@/contexts/SwapContext";
+import { useSwapContext } from "@/contexts/SwapContext";
 import { useLoadedUserContext } from "@/contexts/UserContext";
+import { TokenDirection } from "@/lib/swap";
 import { cn } from "@/lib/utils";
 
 const INPUT_HEIGHT = 70; // px
@@ -27,7 +28,7 @@ interface SwapInputProps {
   token: Token;
   onSelectToken: (token: Token) => void;
   disabledCoinTypes?: string[];
-  onAmountClick?: () => void;
+  onPercentClick?: (percent: number) => void;
 }
 
 const SwapInput = forwardRef<HTMLInputElement, SwapInputProps>(
@@ -43,7 +44,7 @@ const SwapInput = forwardRef<HTMLInputElement, SwapInputProps>(
       token,
       onSelectToken,
       disabledCoinTypes,
-      onAmountClick,
+      onPercentClick,
     },
     ref,
   ) => {
@@ -80,7 +81,7 @@ const SwapInput = forwardRef<HTMLInputElement, SwapInputProps>(
     return (
       <div
         className={cn(
-          "w-full rounded-md border bg-background",
+          "group w-full rounded-md border bg-background",
           !isReadOnly && "border-primary",
         )}
       >
@@ -112,6 +113,7 @@ const SwapInput = forwardRef<HTMLInputElement, SwapInputProps>(
                 paddingBottom: `${INPUT_HEIGHT - 32}px`,
               }}
               step="any"
+              autoComplete="off"
             />
 
             {new BigNumber(value || 0).gt(0) &&
@@ -131,6 +133,21 @@ const SwapInput = forwardRef<HTMLInputElement, SwapInputProps>(
               className="absolute right-3 z-[2] flex flex-col items-end justify-center gap-1"
               style={{ top: 0 }}
             >
+              {/* 25%, 50%, 75%, 100% */}
+              {direction === TokenDirection.IN && (
+                <div className="absolute -top-[22px] right-0 flex flex-row items-center gap-1 pr-1 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
+                  {[25, 50, 75, 100].map((percent) => (
+                    <TLabel
+                      key={percent}
+                      className="w-max cursor-pointer rounded-full bg-muted/10 px-2 py-[1px] transition-colors hover:text-secondary"
+                      onClick={() => onPercentClick?.(percent)}
+                    >
+                      {percent}%
+                    </TLabel>
+                  ))}
+                </div>
+              )}
+
               <TokenSelectionDialog
                 isSwapInput
                 direction={direction}
@@ -140,26 +157,8 @@ const SwapInput = forwardRef<HTMLInputElement, SwapInputProps>(
                 disabledCoinTypes={disabledCoinTypes}
               />
 
-              <div
-                className={cn(
-                  "flex flex-row items-center gap-3 pr-1",
-                  onAmountClick && "cursor-pointer",
-                )}
-                onClick={onAmountClick}
-              >
-                {!swapInAccount ? (
-                  <>
-                    {/* Balance */}
-                    <div className="flex flex-row items-center gap-1.5 text-muted-foreground">
-                      <Wallet className="h-3 w-3 text-inherit" />
-                      <TLabel className="text-inherit">
-                        {tokenBalance.eq(0)
-                          ? "--"
-                          : formatToken(tokenBalance, { exact: false })}
-                      </TLabel>
-                    </div>
-                  </>
-                ) : (
+              <div className="flex flex-row items-center gap-3 pr-1.5">
+                {(swapInAccount || direction === TokenDirection.OUT) && (
                   <>
                     {/* Deposited */}
                     {tokenDepositedAmount.gt(0) && (
@@ -181,6 +180,18 @@ const SwapInput = forwardRef<HTMLInputElement, SwapInputProps>(
                       </div>
                     )}
                   </>
+                )}
+
+                {/* Balance */}
+                {!swapInAccount && (
+                  <div className="flex flex-row items-center gap-1.5 text-muted-foreground">
+                    <Wallet className="h-3 w-3 text-inherit" />
+                    <TLabel className="text-inherit">
+                      {tokenBalance.eq(0)
+                        ? "--"
+                        : formatToken(tokenBalance, { exact: false })}
+                    </TLabel>
+                  </div>
                 )}
               </div>
             </div>

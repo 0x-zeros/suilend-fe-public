@@ -33,18 +33,26 @@ import TokenLogo from "@/components/shared/TokenLogo";
 import Tooltip from "@/components/shared/Tooltip";
 import { TBody, TLabel, TLabelSans } from "@/components/shared/Typography";
 import { useLoadedAppContext } from "@/contexts/AppContext";
-import { TokenDirection, useSwapContext } from "@/contexts/SwapContext";
+import { useSwapContext } from "@/contexts/SwapContext";
 import { useLoadedUserContext } from "@/contexts/UserContext";
+import { TokenDirection } from "@/lib/swap";
 import { cn } from "@/lib/utils";
 
 interface TokenRowProps {
+  direction?: TokenDirection;
   token: Token;
   isSelected: boolean;
   onClick: () => void;
   isDisabled?: boolean;
 }
 
-function TokenRow({ token, isSelected, onClick, isDisabled }: TokenRowProps) {
+function TokenRow({
+  direction,
+  token,
+  isSelected,
+  onClick,
+  isDisabled,
+}: TokenRowProps) {
   const { allAppData } = useLoadedAppContext();
   const { getBalance, obligation } = useLoadedUserContext();
 
@@ -104,7 +112,7 @@ function TokenRow({ token, isSelected, onClick, isDisabled }: TokenRowProps) {
                       )
                         ? "Available on Suilend"
                         : verifiedCoinTypes.includes(token.coinType)
-                          ? "Appears on the list of Aftermath verified coins"
+                          ? "Appears on the list of Cetus verified coins"
                           : ""
                     }
                   >
@@ -122,26 +130,7 @@ function TokenRow({ token, isSelected, onClick, isDisabled }: TokenRowProps) {
 
             {/* Top right */}
             <div className="flex shrink-0 flex-row items-center gap-3">
-              {!swapInAccount ? (
-                <>
-                  {/* Balance */}
-                  <div
-                    className={cn(
-                      "flex flex-row items-center gap-1.5",
-                      tokenBalance.gt(0)
-                        ? "text-foreground"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    <Wallet className="h-3 w-3 text-inherit" />
-                    <TBody className="text-inherit">
-                      {tokenBalance.eq(0)
-                        ? "--"
-                        : formatToken(tokenBalance, { exact: false })}
-                    </TBody>
-                  </div>
-                </>
-              ) : (
+              {(swapInAccount || direction === TokenDirection.OUT) && (
                 <>
                   {/* Deposited */}
                   {tokenDepositedAmount.gt(0) && (
@@ -163,6 +152,25 @@ function TokenRow({ token, isSelected, onClick, isDisabled }: TokenRowProps) {
                     </div>
                   )}
                 </>
+              )}
+
+              {/* Balance */}
+              {!swapInAccount && (
+                <div
+                  className={cn(
+                    "flex flex-row items-center gap-1.5",
+                    tokenBalance.gt(0)
+                      ? "text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  <Wallet className="h-3 w-3 text-inherit" />
+                  <TBody className="text-inherit">
+                    {tokenBalance.eq(0)
+                      ? "--"
+                      : formatToken(tokenBalance, { exact: false })}
+                  </TBody>
+                </div>
               )}
             </div>
           </div>
@@ -449,7 +457,7 @@ export default function TokenSelectionDialog({
       trigger={
         <Button
           className={cn(
-            "group h-auto p-0 hover:bg-transparent",
+            "group/token-selection-dialog-trigger h-auto p-0 hover:bg-transparent",
             triggerClassName,
           )}
           labelClassName={cn(
@@ -461,7 +469,7 @@ export default function TokenSelectionDialog({
           endIcon={
             <ChevronDown
               className={cn(
-                "h-4 w-4 text-foreground/50 transition-colors group-hover:text-foreground",
+                "h-4 w-4 text-foreground/50 transition-colors group-hover/token-selection-dialog-trigger:text-foreground",
                 triggerChevronClassName,
               )}
             />
@@ -546,6 +554,7 @@ export default function TokenSelectionDialog({
                   {list.tokens.map((t) => (
                     <TokenRow
                       key={t.coinType}
+                      direction={direction}
                       token={t}
                       isSelected={t.coinType === token?.coinType}
                       onClick={() => onTokenClick(t)}

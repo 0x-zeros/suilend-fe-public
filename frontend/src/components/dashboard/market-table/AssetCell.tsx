@@ -35,13 +35,9 @@ import TokenLogo from "@/components/shared/TokenLogo";
 import Tooltip from "@/components/shared/Tooltip";
 import { TBody, TLabel, TLabelSans } from "@/components/shared/Typography";
 import { useLoadedAppContext } from "@/contexts/AppContext";
-import {
-  DEFAULT_TOKEN_IN_SYMBOL as SWAP_DEFAULT_TOKEN_IN_SYMBOL,
-  DEFAULT_TOKEN_OUT_SYMBOL as SWAP_DEFAULT_TOKEN_OUT_SYMBOL,
-  getSwapUrl,
-} from "@/contexts/SwapContext";
 import { useLoadedUserContext } from "@/contexts/UserContext";
 import { SPRINGSUI_URL } from "@/lib/navigation";
+import { getSwapUrl } from "@/lib/swap";
 import { cn, hoverUnderlineClassName } from "@/lib/utils";
 import {
   SUILEND_WALRUS_NODE_ID,
@@ -146,6 +142,7 @@ export default function AssetCell({
     if (!address) return;
 
     const transaction = new Transaction();
+    transaction.setSender(address);
 
     try {
       const balance = getBalance(NORMALIZED_WAL_COINTYPE);

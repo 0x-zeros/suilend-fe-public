@@ -29,6 +29,8 @@ import { useDashboardContext } from "@/contexts/DashboardContext";
 import { useLoadedUserContext } from "@/contexts/UserContext";
 import { TX_TOAST_DURATION } from "@/lib/constants";
 
+import { Separator } from "../ui/separator";
+
 interface ClaimRewardsDropdownMenuProps {
   rewardsMap: Record<string, RewardSummary[]>;
 }
@@ -37,7 +39,7 @@ export default function ClaimRewardsDropdownMenu({
   rewardsMap,
 }: ClaimRewardsDropdownMenuProps) {
   const { explorer } = useSettingsContext();
-  const { appData } = useLoadedAppContext();
+  const { appData, closeLedgerHashDialog } = useLoadedAppContext();
   const { refresh, obligation } = useLoadedUserContext();
 
   const { claimRewards } = useDashboardContext();
@@ -57,13 +59,16 @@ export default function ClaimRewardsDropdownMenu({
     return !obligation
       ? tokensWithReserves.slice(0, 5)
       : [
-          ...tokensWithReserves.filter((t) =>
-            obligation.deposits.some((d) => d.coinType === t.coinType),
+          ...tokensWithReserves.filter(
+            (t) =>
+              obligation.deposits.some((d) => d.coinType === t.coinType) &&
+              !obligation.borrows.some((b) => b.coinType === t.coinType),
           ),
           ...tokensWithReserves
             .filter(
               (t) =>
-                !obligation.deposits.some((d) => d.coinType === t.coinType),
+                !obligation.deposits.some((d) => d.coinType === t.coinType) &&
+                !obligation.borrows.some((b) => b.coinType === t.coinType),
             )
             .slice(0, 5 - obligation.deposits.length),
         ];
@@ -73,22 +78,29 @@ export default function ClaimRewardsDropdownMenu({
   // SEND
   const canDepositAsSend = !obligation
     ? 1 <= 5
-    : obligation.deposits.some(
+    : (obligation.deposits.some(
         (d) => d.coinType === NORMALIZED_SEND_COINTYPE,
-      ) || obligation.deposits.length + 1 <= 5;
+      ) ||
+        obligation.deposits.length + 1 <= 5) &&
+      !obligation.borrows.some((b) => b.coinType === NORMALIZED_SEND_COINTYPE);
 
   // SUI
   const canDepositAsSui = !obligation
     ? 1 <= 5
-    : obligation.deposits.some((d) => d.coinType === NORMALIZED_SUI_COINTYPE) ||
-      obligation.deposits.length + 1 <= 5;
+    : (obligation.deposits.some(
+        (d) => d.coinType === NORMALIZED_SUI_COINTYPE,
+      ) ||
+        obligation.deposits.length + 1 <= 5) &&
+      !obligation.borrows.some((b) => b.coinType === NORMALIZED_SUI_COINTYPE);
 
   // USDC
   const canDepositAsUsdc = !obligation
     ? 1 <= 5
-    : obligation.deposits.some(
+    : (obligation.deposits.some(
         (d) => d.coinType === NORMALIZED_USDC_COINTYPE,
-      ) || obligation.deposits.length + 1 <= 5;
+      ) ||
+        obligation.deposits.length + 1 <= 5) &&
+      !obligation.borrows.some((b) => b.coinType === NORMALIZED_USDC_COINTYPE);
 
   // State
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -140,6 +152,9 @@ export default function ClaimRewardsDropdownMenu({
             ),
           ),
           "rewards",
+          args?.asSend || args?.asSui || args?.asUsdc
+            ? `as ${args?.asSend ? "SEND" : args?.asSui ? "SUI" : "USDC"}`
+            : null,
         ]
           .filter(Boolean)
           .join(" "),
@@ -163,6 +178,9 @@ export default function ClaimRewardsDropdownMenu({
             ),
           ),
           "rewards",
+          args?.asSend || args?.asSui || args?.asUsdc
+            ? `as ${args?.asSend ? "SEND" : args?.asSui ? "SUI" : "USDC"}`
+            : null,
         ]
           .filter(Boolean)
           .join(" "),
@@ -173,6 +191,8 @@ export default function ClaimRewardsDropdownMenu({
     } finally {
       setIsClaiming(false);
       refresh();
+
+      closeLedgerHashDialog();
     }
   };
 
@@ -195,13 +215,44 @@ export default function ClaimRewardsDropdownMenu({
       }}
       items={
         <>
-          {/* Claim */}
-          <DropdownMenuItem className="w-full" onClick={() => submit()}>
-            <TLabelSans className="text-foreground">Claim</TLabelSans>
-          </DropdownMenuItem>
+          {/* Claim, claim and deposit */}
+          <div className="flex w-full flex-col gap-1.5">
+            <div className="flex w-full flex-row gap-2">
+              <DropdownMenuItem className="w-full" onClick={() => submit()}>
+                <TLabelSans className="text-foreground">Claim</TLabelSans>
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                className="w-full"
+                isDisabled={tokensThatCanBeDeposited.length === 0}
+                onClick={() => submit({ isDepositing: true })}
+              >
+                <TLabelSans className="text-foreground">
+                  Claim and deposit
+                </TLabelSans>
+              </DropdownMenuItem>
+            </div>
+
+            {tokensThatCanBeDeposited.length < tokens.length && (
+              <TLabelSans className="pl-3 text-[10px]">
+                {`Note: Cannot claim and deposit ${formatList(
+                  tokens
+                    .filter(
+                      (t) =>
+                        !tokensThatCanBeDeposited
+                          .map((_t) => _t.coinType)
+                          .includes(t.coinType),
+                    )
+                    .map((t) => t.symbol),
+                ).replace("and", "or")} (max 5 deposit positions, no borrows).`}
+              </TLabelSans>
+            )}
+          </div>
+
+          <Separator className="-mx-4 my-1 w-auto" />
 
           {/* Claim as SEND/SUI/USDC */}
-          <div className="flex h-[34px] w-full flex-row items-center justify-between gap-2 rounded-sm bg-gradient-to-r from-border/50 via-transparent to-transparent pl-[13px]">
+          <div className="flex h-[34px] w-full flex-row items-center justify-between gap-2 rounded-sm bg-gradient-to-r from-border via-transparent to-transparent pl-[13px]">
             <TLabelSans className="text-foreground">Claim as...</TLabelSans>
 
             <div className="flex flex-row items-center gap-1.5">
@@ -231,39 +282,9 @@ export default function ClaimRewardsDropdownMenu({
             </div>
           </div>
 
-          {/* Claim and deposit */}
-          <div className="mt-2 flex w-full flex-col gap-1.5">
-            <DropdownMenuItem
-              className="w-full"
-              isDisabled={tokensThatCanBeDeposited.length === 0}
-              onClick={() => submit({ isDepositing: true })}
-            >
-              <TLabelSans className="text-foreground">
-                Claim and deposit
-              </TLabelSans>
-            </DropdownMenuItem>
-
-            {tokensThatCanBeDeposited.length < tokens.length && (
-              <TLabelSans className="mb-1 pl-3 text-[10px]">
-                {`Cannot claim and deposit ${formatList(
-                  tokens
-                    .filter(
-                      (t) =>
-                        !tokensThatCanBeDeposited
-                          .map((_t) => _t.coinType)
-                          .includes(t.coinType),
-                    )
-                    .map((t) => t.symbol),
-                ).replace("and", "or")} (max 5 deposit positions).`}
-                {tokensThatCanBeDeposited.length > 0 &&
-                  ` Only ${formatList(tokensThatCanBeDeposited.map((t) => t.symbol))} will be claimed and deposited.`}
-              </TLabelSans>
-            )}
-          </div>
-
           {/* Claim and deposit as SEND/SUI/USDC */}
           <div className="flex w-full flex-col gap-1.5">
-            <div className="flex h-[34px] w-full flex-row items-center justify-between gap-2 rounded-sm bg-gradient-to-r from-border/50 via-transparent to-transparent pl-[13px]">
+            <div className="flex h-[34px] w-full flex-row items-center justify-between gap-2 rounded-sm bg-gradient-to-r from-border via-transparent to-transparent pl-[13px]">
               <TLabelSans className="text-foreground">
                 Claim and deposit as...
               </TLabelSans>
@@ -300,13 +321,13 @@ export default function ClaimRewardsDropdownMenu({
 
             {(!canDepositAsSend || !canDepositAsSui || !canDepositAsUsdc) && (
               <TLabelSans className="pl-3 text-[10px]">
-                {`Cannot claim and deposit as ${formatList(
+                {`Note: Cannot claim and deposit as ${formatList(
                   [
                     !canDepositAsSend ? "SEND" : null,
                     !canDepositAsSui ? "SUI" : null,
                     !canDepositAsUsdc ? "USDC" : null,
                   ].filter(Boolean) as string[],
-                ).replace("and", "or")} (max 5 deposit positions).`}
+                ).replace("and", "or")} (max 5 deposit positions, no borrows).`}
               </TLabelSans>
             )}
           </div>

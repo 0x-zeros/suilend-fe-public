@@ -12,6 +12,7 @@ import {
   NORMALIZED_FUD_COINTYPE,
   NORMALIZED_HAEDAL_COINTYPE,
   NORMALIZED_HIPPO_COINTYPE,
+  NORMALIZED_IKA_COINTYPE,
   NORMALIZED_KOBAN_COINTYPE,
   NORMALIZED_LBTC_COINTYPE,
   NORMALIZED_LOFI_COINTYPE,
@@ -86,6 +87,7 @@ export const RESERVES_CUSTOM_ORDER = [
 
   // ISOLATED ASSETS
   NORMALIZED_SEND_COINTYPE,
+  NORMALIZED_IKA_COINTYPE,
   NORMALIZED_HAEDAL_COINTYPE,
   NORMALIZED_BLUE_COINTYPE,
   NORMALIZED_NS_COINTYPE,
@@ -143,7 +145,9 @@ export const initializeSuilend = async (
   const [refreshedReservesWithoutTemporaryPythPriceFeeds] = await Promise.all([
     simulate.refreshReservePrice(
       reservesWithoutTemporaryPythPriceFeeds,
-      new SuiPriceServiceConnection("https://hermes.pyth.network"),
+      new SuiPriceServiceConnection("https://hermes.pyth.network", {
+        timeout: 30 * 1000,
+      }),
     ),
     Promise.all(
       reservesWithTemporaryPythPriceFeeds.map((reserve) =>

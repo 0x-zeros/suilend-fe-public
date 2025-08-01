@@ -78,7 +78,7 @@ export const useDashboardContext = () => useContext(DashboardContext);
 export function DashboardContextProvider({ children }: PropsWithChildren) {
   const { address, dryRunTransaction, signExecuteAndWaitForTransaction } =
     useWalletContext();
-  const { appData } = useLoadedAppContext();
+  const { appData, openLedgerHashDialog } = useLoadedAppContext();
   const {
     obligation,
     obligationOwnerCap,
@@ -329,7 +329,11 @@ export function DashboardContextProvider({ children }: PropsWithChildren) {
         await autoclaimRewards(transaction);
       transaction = _transaction;
 
-      const res = await signExecuteAndWaitForTransaction(transaction);
+      const res = await signExecuteAndWaitForTransaction(
+        transaction,
+        undefined,
+        (tx: Transaction) => openLedgerHashDialog(tx),
+      );
       onAutoclaimSuccess();
       track(
         "claim_rewards",
@@ -348,6 +352,7 @@ export function DashboardContextProvider({ children }: PropsWithChildren) {
       getClaimRewardSimulatedAmount,
       cetusSdk,
       autoclaimRewards,
+      openLedgerHashDialog,
       signExecuteAndWaitForTransaction,
     ],
   );
