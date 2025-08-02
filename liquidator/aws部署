@@ -121,4 +121,13 @@ ls -la
 npm list
 node --version
 
+[检查磁盘空间]
+# 1. 检查当前状态
+df -h
+lsblk
+
+
+dispatcher-1  | Error: Cannot find module '@suilend/sui-fe'
+worker-1      | Error: Cannot find module '@suilend/sui-fe'
+
 
