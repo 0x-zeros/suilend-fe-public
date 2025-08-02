@@ -31,8 +31,35 @@ git clone git@github.com:0x-zeros/suilend-fe-public.git
 
 
 
+3.
+启动：
+docker-compose up -d --build
 
-3. 构建和启动服务
+
+下一次这个就可以了：
+docker-compose up -d
+
+
+
+
+使用 docker-compose up -d 当：
+    服务已经正常运行，只是重启
+    没有代码更改
+    快速测试
+
+
+使用 docker-compose up -d --build 当：
+    修改了源代码
+    更新了package.json依赖
+    第一次部署
+    怀疑镜像有问题需要重新构建
+
+
+
+
+
+
+【构建和启动服务】
 
 # 进入项目目录
 cd suilend-fe-public
@@ -41,8 +68,15 @@ cd suilend-fe-public
 pwd
 # 应该显示: /path/to/suilend-fe-public/liquidator
 
-# 停止任何现有服务
+
+# 停止服务（保留容器）
+docker-compose stop
+
+# 停止任何现有服务 （删除所有容器， 删除容器日志 等）
 docker-compose down
+
+# 重新启动
+docker-compose start
 
 
 # 构建和启动服务
@@ -86,3 +120,5 @@ docker-compose exec worker sh
 ls -la
 npm list
 node --version
+
+
